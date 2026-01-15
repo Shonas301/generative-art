@@ -26,9 +26,9 @@ def get_requirements(requirements_file):
 
 
 setup(
-    name="{ cookiecutter.package_name }}",
+    name="generative_art",
     version="0.0.1",
-    description="""""",
+    description="generative art sketches using py5",
     author="Jason Shipp",
     author_email="bit.shonas@gmail.com",
     python_requires="~=3.12",

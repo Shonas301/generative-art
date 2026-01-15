@@ -120,6 +120,22 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["D", "INP001"]
+# generative art sketches use print for user feedback during execution
+"src/generative_art/*_flow*.py" = ["T201", "FBT001", "FBT002", "PLR0913"]
+"src/generative_art/*perlin*.py" = ["T201"]
+# flow field module has complex algorithms (poisson disk sampling)
+"src/generative_art/flow_field.py" = ["C901", "PLR0912", "PLR0915", "PLR0913"]
+# CLI entry points have boolean positional args from click decorators
+"src/generative_art/__main__.py" = ["FBT001", "T201"]
+# maya grass plugin - complex terrain analysis and configurable methods
+"src/maya_grass/*.py" = [
+    "C901",      # terrain blob detection is inherently complex
+    "PLR0913",   # methods need many config params
+    "FBT001",    # boolean config options
+    "FBT002",    # boolean default values for config
+    "ARG002",    # some args reserved for maya-specific implementation
+    "PLC0415",   # conditional imports for maya/non-maya environments
+]
 
 
 [tool.ruff.lint.isort]

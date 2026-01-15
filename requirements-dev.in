@@ -2,5 +2,6 @@ mypy
 pip-tools
 pytest
 pytest-cov
+pytest-mock
 pytest-sugar
 ruff
