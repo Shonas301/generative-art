@@ -2,9 +2,6 @@
 
 import math
 
-import numpy as np
-import pytest
-
 from generative_art.flow_field import (
     ClusteringConfig,
     FlowField,
@@ -14,6 +11,11 @@ from generative_art.flow_field import (
     create_clustered_points,
     create_flow_field_with_obstacles,
 )
+
+# continuity thresholds for flow field tests
+# note: threshold tuned to opensimplex noise characteristics at default noise_scale=0.003
+CONTINUITY_THRESHOLD = 1.2  # max angle change in radians between adjacent samples (~69 deg)
+TIME_CONTINUITY_THRESHOLD = 0.5  # max angle change between time steps
 
 
 class TestObstacle:
@@ -483,3 +485,98 @@ class TestConvenienceFunctions:
         for x, y in points:
             dist = math.sqrt((x - 500) ** 2 + (y - 500) ** 2)
             assert dist >= 50
+
+
+class TestFlowFieldContinuity:
+    """Tests for flow field continuity and organic patterns."""
+
+    def test_base_flow_continuity(self) -> None:
+        """test that nearby points have similar flow vectors (spatial continuity)."""
+        # given
+        flow_field = FlowField()
+        grid_size = 10
+        step = 10.0  # spacing between samples
+
+        # when - sample a grid of points and compute angle differences
+        max_angle_diff = 0.0
+        for i in range(grid_size - 1):
+            for j in range(grid_size - 1):
+                x = i * step
+                y = j * step
+
+                # get angles at current and adjacent points
+                angle_current = flow_field.get_flow_angle(x, y)
+                angle_right = flow_field.get_flow_angle(x + step, y)
+                angle_down = flow_field.get_flow_angle(x, y + step)
+
+                # compute angle differences (accounting for wrap-around)
+                diff_right = abs(angle_current - angle_right)
+                diff_down = abs(angle_current - angle_down)
+
+                # handle wrap-around at +/- pi
+                if diff_right > math.pi:
+                    diff_right = 2 * math.pi - diff_right
+                if diff_down > math.pi:
+                    diff_down = 2 * math.pi - diff_down
+
+                max_angle_diff = max(max_angle_diff, diff_right, diff_down)
+
+        # then - angle differences should be less than threshold
+        assert max_angle_diff < CONTINUITY_THRESHOLD, (
+            f"max angle diff {max_angle_diff:.3f} exceeds threshold {CONTINUITY_THRESHOLD}"
+        )
+
+    def test_base_flow_time_continuity(self) -> None:
+        """test that animation is smooth over time (no discontinuities)."""
+        # given
+        flow_field = FlowField()
+        x, y = 100.0, 100.0
+        time_steps = [0.0, 0.1, 0.2]
+
+        # when - sample same point at consecutive time steps
+        angles = [flow_field.get_flow_angle(x, y, time=t) for t in time_steps]
+
+        # then - angle changes should be gradual
+        for i in range(len(angles) - 1):
+            angle_diff = abs(angles[i] - angles[i + 1])
+            # handle wrap-around at +/- pi
+            if angle_diff > math.pi:
+                angle_diff = 2 * math.pi - angle_diff
+
+            assert angle_diff < TIME_CONTINUITY_THRESHOLD, (
+                f"time step {time_steps[i]} -> {time_steps[i + 1]}: "
+                f"angle diff {angle_diff:.3f} exceeds threshold {TIME_CONTINUITY_THRESHOLD}"
+            )
+
+    def test_base_flow_angle_distribution(self) -> None:
+        """test that angles cover reasonable range (not all pointing same direction)."""
+        # given
+        flow_field = FlowField()
+        num_samples = 100
+        sample_range = 500.0
+
+        # when - sample many points across a large area
+        angles = []
+        for i in range(num_samples):
+            x = (i % 10) * (sample_range / 10)
+            y = (i // 10) * (sample_range / 10)
+            angle = flow_field.get_flow_angle(x, y)
+            angles.append(angle)
+
+        # then - angles should be distributed (not all similar)
+        # compute histogram bins (8 bins covering -pi to pi)
+        num_bins = 8
+        bin_width = 2 * math.pi / num_bins
+        bin_counts = [0] * num_bins
+
+        for angle in angles:
+            # shift from [-pi, pi] to [0, 2*pi] for binning
+            shifted = angle + math.pi
+            bin_idx = min(int(shifted / bin_width), num_bins - 1)
+            bin_counts[bin_idx] += 1
+
+        # at least 3 bins should have points (not all in same direction)
+        non_empty_bins = sum(1 for count in bin_counts if count > 0)
+        assert non_empty_bins >= 3, (
+            f"only {non_empty_bins} bins have angles - flow may be too monotonic"
+        )
