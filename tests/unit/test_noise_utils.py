@@ -146,3 +146,109 @@ class TestFbmNoise2:
         for x, y in coords:
             result = fbm_noise2(x, y, octaves=octaves)
             assert -1.0 <= result <= 1.0, f"out of range at ({x}, {y}): {result}"
+
+
+class TestFbmNoise3:
+    """tests for fbm_noise3 function."""
+
+    def test_fbm_noise3_returns_float(self) -> None:
+        """test that fbm_noise3 returns a float."""
+        # given
+        x, y, z = 0.5, 0.5, 0.0
+
+        # when
+        result = fbm_noise3(x, y, z)
+
+        # then
+        assert isinstance(result, float)
+
+    def test_fbm_noise3_output_in_range(self) -> None:
+        """test that output is always in [-1.0, 1.0] range."""
+        # given
+        coords = [
+            (0, 0, 0),
+            (1.5, 2.3, 0.5),
+            (-0.5, 100.0, 10.0),
+            (999.0, -888.0, 50.0),
+        ]
+
+        # when / then
+        for x, y, z in coords:
+            result = fbm_noise3(x, y, z)
+            assert -1.0 <= result <= 1.0, f"out of range at ({x}, {y}, {z}): {result}"
+
+    def test_fbm_noise3_z_for_animation(self) -> None:
+        """test that z parameter produces smooth variation (animation use case)."""
+        # given
+        init_noise(42)
+        x, y = 0.5, 0.5
+        z_values = [0.0, 0.1, 0.2, 1.0]
+
+        # when
+        results = [fbm_noise3(x, y, z) for z in z_values]
+
+        # then
+        # all values should be different (z affects output)
+        assert len(set(results)) == len(results), "z values should produce different outputs"
+
+        # adjacent z values should be reasonably close (smooth animation)
+        for i in range(len(results) - 1):
+            diff = abs(results[i] - results[i + 1])
+            assert diff < 1.0, f"z transition too abrupt: {diff}"
+
+    def test_fbm_noise3_output_normalized_with_many_octaves(self) -> None:
+        """test that output is normalized even with many octaves."""
+        # given
+        init_noise(42)
+        coords = [
+            (0, 0, 0),
+            (1.5, 2.3, 0.5),
+            (-0.5, 100.0, 10.0),
+            (999.0, -888.0, 50.0),
+        ]
+        octaves = 8
+
+        # when / then
+        for x, y, z in coords:
+            result = fbm_noise3(x, y, z, octaves=octaves)
+            assert -1.0 <= result <= 1.0, f"out of range at ({x}, {y}, {z}): {result}"
+
+
+class TestFbmNoise1:
+    """tests for fbm_noise1 function."""
+
+    def test_fbm_noise1_returns_float(self) -> None:
+        """test that fbm_noise1 returns a float."""
+        # given
+        x = 0.5
+
+        # when
+        result = fbm_noise1(x)
+
+        # then
+        assert isinstance(result, float)
+
+    def test_fbm_noise1_output_in_range(self) -> None:
+        """test that output is always in [-1.0, 1.0] range."""
+        # given
+        x_values = [0, 0.5, 1.5, -0.5, 100.0, 999.0]
+
+        # when / then
+        for x in x_values:
+            result = fbm_noise1(x)
+            assert -1.0 <= result <= 1.0, f"out of range at x={x}: {result}"
+
+    def test_fbm_noise1_equivalent_to_noise2_with_y_zero(self) -> None:
+        """test that fbm_noise1 is equivalent to fbm_noise2 with y=0."""
+        # given
+        init_noise(42)
+        x = 0.5
+        octaves = 2
+        persistence = 0.5
+
+        # when
+        value_noise1 = fbm_noise1(x, octaves=octaves, persistence=persistence)
+        value_noise2 = fbm_noise2(x, 0.0, octaves=octaves, persistence=persistence)
+
+        # then
+        assert value_noise1 == value_noise2
