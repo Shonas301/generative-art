@@ -1,8 +1,9 @@
 """Unit tests for noise_utils module."""
 
-import pytest
-
 from generative_art.noise_utils import fbm_noise1, fbm_noise2, fbm_noise3, init_noise
+
+# continuity threshold - small coordinate changes should produce small value changes
+CONTINUITY_THRESHOLD = 0.1
 
 
 class TestInitNoise:
@@ -133,7 +134,7 @@ class TestFbmNoise2:
 
         # then
         difference = abs(value_base - value_nearby)
-        assert difference < 0.1, f"discontinuity: {difference}"
+        assert difference < CONTINUITY_THRESHOLD, f"discontinuity: {difference}"
 
     def test_fbm_noise2_output_normalized_with_many_octaves(self) -> None:
         """test that output is normalized even with many octaves."""
