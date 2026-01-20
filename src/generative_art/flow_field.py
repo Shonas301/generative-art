@@ -2,7 +2,7 @@
 
 This module provides framework-agnostic flow field calculations that can be used
 for both py5 visualization and maya grass animation. the core features are:
-- perlin noise-based flow fields
+- opensimplex noise-based flow fields
 - obstacle avoidance using potential fields
 - point clustering around obstacles
 """
@@ -10,7 +10,8 @@ for both py5 visualization and maya grass animation. the core features are:
 from dataclasses import dataclass
 
 import numpy as np
-from noise import pnoise3
+
+from generative_art.noise_utils import fbm_noise3
 
 # epsilon for floating point comparisons (distance from exact center)
 DISTANCE_EPSILON = 0.001
@@ -62,7 +63,7 @@ class FlowFieldConfig:
 class FlowField:
     """Flow field generator with obstacle avoidance.
 
-    calculates flow vectors at any point using perlin noise, modified by
+    calculates flow vectors at any point using opensimplex noise, modified by
     obstacles to create natural-looking flow around objects.
     """
 
@@ -103,13 +104,14 @@ class FlowField:
         Returns:
             tuple of (vx, vy) flow vector
         """
-        # sample 3d perlin noise (x, y, time)
-        noise_val = pnoise3(
+        # sample 3d opensimplex noise (x, y, time)
+        noise_val = fbm_noise3(
             x * self.config.noise_scale,
             y * self.config.noise_scale,
             time * self.config.time_scale,
             octaves=self.config.octaves,
             persistence=self.config.persistence,
+            lacunarity=2.0,
         )
 
         # convert noise to angle
