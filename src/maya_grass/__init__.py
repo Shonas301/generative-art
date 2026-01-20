@@ -89,16 +89,22 @@ def _validate_mesh_exists(mesh_name: str, description: str) -> None:
         raise RuntimeError(msg)
 
 
-def _validate_params(count: int, scale_variation: tuple[float, float]) -> None:
+def _validate_params(
+    count: int,
+    scale_variation: tuple[float, float],
+    proximity_density_boost: float,
+) -> None:
     """Validate parameter values.
 
     Args:
         count: number of grass blades
         scale_variation: (min_scale, max_scale) tuple
+        proximity_density_boost: density multiplier near obstacles
 
     Raises:
         ValueError: if count is zero or negative
         ValueError: if scale values are invalid
+        ValueError: if proximity_density_boost is less than 1.0
     """
     if count <= 0:
         msg = f"count must be positive, got {count}"
@@ -113,6 +119,10 @@ def _validate_params(count: int, scale_variation: tuple[float, float]) -> None:
         raise ValueError(msg)
     if min_scale > max_scale:
         msg = f"min_scale ({min_scale}) cannot be greater than max_scale ({max_scale})"
+        raise ValueError(msg)
+
+    if proximity_density_boost < 1.0:
+        msg = f"proximity_density_boost must be >= 1.0, got {proximity_density_boost}"
         raise ValueError(msg)
 
 
@@ -146,6 +156,7 @@ def generate_grass(
     noise_scale: float = 0.004,
     octaves: int = 4,  # noqa: ARG001 - reserved for future use
     time_scale: float = 0.008,
+    proximity_density_boost: float = 1.0,
 ) -> str:
     """Generate animated grass on a terrain mesh.
 
@@ -164,6 +175,9 @@ def generate_grass(
         noise_scale: how fine/coarse the wind pattern is (default: 0.004)
         octaves: number of noise octaves for wind (default: 4)
         time_scale: how fast wind pattern evolves (default: 0.008)
+        proximity_density_boost: multiplier for grass density near obstacles.
+            1.0 = no effect (default), 3.0 = 3x density near obstacles.
+            Simulates foot traffic avoidance effect.
 
     Returns:
         name of created MASH network for further manipulation
@@ -183,7 +197,7 @@ def generate_grass(
     # validate inputs before doing any work
     _validate_mesh_exists(terrain_mesh, "Terrain mesh")
     _validate_mesh_exists(grass_geometry, "Grass geometry")
-    _validate_params(count, scale_variation)
+    _validate_params(count, scale_variation, proximity_density_boost)
 
     # initialize noise with seed for deterministic results
     from generative_art.noise_utils import init_noise
@@ -204,6 +218,11 @@ def generate_grass(
     # detect obstacles from scene (exclude terrain and grass geometry)
     generator.detect_scene_obstacles(
         exclude_objects=[terrain_mesh, grass_geometry],
+    )
+
+    # configure clustering with proximity density boost
+    generator.configure_clustering(
+        obstacle_density_multiplier=proximity_density_boost,
     )
 
     # calculate scale_variation for generate_points
