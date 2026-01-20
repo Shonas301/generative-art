@@ -78,6 +78,9 @@ outputs/
 progress.md
 claude.md
 
+# GSD planning docs (local-only)
+.planning/
+
 # OS
 .DS_Store
 Thumbs.db
