@@ -13,9 +13,9 @@ from generative_art.flow_field import (
 )
 
 # continuity thresholds for flow field tests
-# note: threshold tuned to opensimplex noise characteristics at default noise_scale=0.003
-CONTINUITY_THRESHOLD = 1.2  # max angle change in radians between adjacent samples (~69 deg)
-TIME_CONTINUITY_THRESHOLD = 0.5  # max angle change between time steps
+# threshold tuned to opensimplex noise at default noise_scale=0.003
+CONTINUITY_THRESHOLD = 1.2  # max radians between adjacent samples (~69 deg)
+TIME_CONTINUITY_THRESHOLD = 0.5  # max radians between time steps
 
 
 class TestObstacle:
@@ -523,7 +523,8 @@ class TestFlowFieldContinuity:
 
         # then - angle differences should be less than threshold
         assert max_angle_diff < CONTINUITY_THRESHOLD, (
-            f"max angle diff {max_angle_diff:.3f} exceeds threshold {CONTINUITY_THRESHOLD}"
+            f"max angle diff {max_angle_diff:.3f} exceeds "
+            f"threshold {CONTINUITY_THRESHOLD}"
         )
 
     def test_base_flow_time_continuity(self) -> None:
@@ -545,7 +546,8 @@ class TestFlowFieldContinuity:
 
             assert angle_diff < TIME_CONTINUITY_THRESHOLD, (
                 f"time step {time_steps[i]} -> {time_steps[i + 1]}: "
-                f"angle diff {angle_diff:.3f} exceeds threshold {TIME_CONTINUITY_THRESHOLD}"
+                f"angle diff {angle_diff:.3f} exceeds "
+                f"threshold {TIME_CONTINUITY_THRESHOLD}"
             )
 
     def test_base_flow_angle_distribution(self) -> None:
