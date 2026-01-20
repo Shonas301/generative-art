@@ -14,6 +14,12 @@ from generative_art.flow_field import (
     create_clustered_points,
     create_flow_field_with_obstacles,
 )
+from generative_art.noise_utils import (
+    fbm_noise1,
+    fbm_noise2,
+    fbm_noise3,
+    init_noise,
+)
 
 __all__ = [
     "ClusteringConfig",
@@ -25,4 +31,8 @@ __all__ = [
     "create_clustered_points",
     "create_flow_field_with_obstacles",
     "export_multi_resolution",
+    "fbm_noise1",
+    "fbm_noise2",
+    "fbm_noise3",
+    "init_noise",
 ]
