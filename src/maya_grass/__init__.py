@@ -1,26 +1,37 @@
 """Maya grass generation plugin using flow fields.
 
 This module provides tools for generating natural-looking animated grass in
-Autodesk Maya. it integrates with the generative_art.flow_field module to
+Autodesk Maya. It integrates with the generative_art.flow_field module to
 create wind-responsive grass that flows around obstacles.
 
-usage:
+Quick Start:
     # in maya's script editor (python):
+    from maya_grass import generate_grass
+
+    # minimal usage - just terrain and grass geometry names
+    network = generate_grass('pPlane1', 'grassBlade')
+
+    # with custom settings
+    network = generate_grass(
+        'terrain_mesh',
+        'grassBlade_geo',
+        count=10000,
+        wind_strength=3.0,
+        scale_variation=(0.7, 1.3),
+    )
+
+    # the returned network name can be used for further manipulation
+
+Advanced Usage:
+    # for fine control, use the class-based API directly
     from maya_grass import GrassGenerator
 
-    # create generator from selected terrain mesh
     grass = GrassGenerator.from_selection()
-
-    # detect obstacles from bump map threshold
-    grass.detect_obstacles_from_bump(threshold=0.5)
-
-    # generate grass points clustered around obstacles
+    grass.configure_wind(noise_scale=0.01, wind_strength=5.0)
     grass.generate_points(count=10000)
+    grass.create_mash_network("grassBlade")
 
-    # create MASH network for instancing
-    grass.create_mash_network(grass_geometry="grassBlade")
-
-features:
+Features:
     - bump/displacement map obstacle detection
     - wind flow field with obstacle avoidance
     - point clustering around obstacles
@@ -37,4 +48,180 @@ __all__ = [
     "GrassGenerator",
     "TerrainAnalyzer",
     "WindField",
+    "generate_grass",
 ]
+
+
+def _validate_mesh_exists(mesh_name: str, description: str) -> None:
+    """Validate that a mesh exists and has geometry.
+
+    Args:
+        mesh_name: name of maya mesh to validate
+        description: human-readable description for error messages
+
+    Raises:
+        RuntimeError: if mesh not found, no mesh shape, or no faces
+    """
+    # lazy import for testing outside maya
+    from maya import cmds
+
+    if not cmds.objExists(mesh_name):
+        msg = (
+            f"{description} '{mesh_name}' not found in scene. "
+            "Use cmds.ls(type='mesh') to list available meshes."
+        )
+        raise RuntimeError(msg)
+
+    shapes = cmds.listRelatives(mesh_name, shapes=True, type="mesh")
+    if not shapes:
+        msg = (
+            f"{description} '{mesh_name}' has no mesh shape. "
+            "Ensure it is a polygon mesh, not a transform or other node type."
+        )
+        raise RuntimeError(msg)
+
+    face_count = cmds.polyEvaluate(mesh_name, face=True)
+    if face_count == 0:
+        msg = (
+            f"{description} '{mesh_name}' has no faces. "
+            "Ensure the mesh has valid polygon geometry."
+        )
+        raise RuntimeError(msg)
+
+
+def _validate_params(count: int, scale_variation: tuple[float, float]) -> None:
+    """Validate parameter values.
+
+    Args:
+        count: number of grass blades
+        scale_variation: (min_scale, max_scale) tuple
+
+    Raises:
+        ValueError: if count is zero or negative
+        ValueError: if scale values are invalid
+    """
+    if count <= 0:
+        msg = f"count must be positive, got {count}"
+        raise ValueError(msg)
+
+    min_scale, max_scale = scale_variation
+    if min_scale <= 0:
+        msg = f"min_scale must be positive, got {min_scale}"
+        raise ValueError(msg)
+    if max_scale <= 0:
+        msg = f"max_scale must be positive, got {max_scale}"
+        raise ValueError(msg)
+    if min_scale > max_scale:
+        msg = f"min_scale ({min_scale}) cannot be greater than max_scale ({max_scale})"
+        raise ValueError(msg)
+
+
+def _get_unique_network_name(base_name: str = "grass_MASH") -> str:
+    """Generate a unique MASH network name.
+
+    Args:
+        base_name: base name for the network
+
+    Returns:
+        unique network name (e.g., grass_MASH_1, grass_MASH_2)
+    """
+    # lazy import for testing outside maya
+    from maya import cmds
+
+    counter = 1
+    while True:
+        name = f"{base_name}_{counter}"
+        if not cmds.objExists(name):
+            return name
+        counter += 1
+
+
+def generate_grass(
+    terrain_mesh: str,
+    grass_geometry: str,
+    count: int = 5000,
+    wind_strength: float = 2.5,
+    scale_variation: tuple[float, float] = (0.8, 1.2),
+    seed: int = 42,
+    noise_scale: float = 0.004,
+    octaves: int = 4,  # noqa: ARG001 - reserved for future use
+    time_scale: float = 0.008,
+) -> str:
+    """Generate animated grass on a terrain mesh.
+
+    Creates a MASH network that distributes grass instances on the terrain
+    with wind animation. Uses opensimplex noise for organic wind patterns
+    that flow around obstacles.
+
+    Args:
+        terrain_mesh: name of maya mesh to distribute grass on
+        grass_geometry: name of grass blade geometry to instance
+        count: number of grass blades to generate (default: 5000)
+        wind_strength: magnitude of wind effect (default: 2.5)
+        scale_variation: (min_scale, max_scale) for blade size variation
+            (default: (0.8, 1.2))
+        seed: random seed for deterministic results (default: 42)
+        noise_scale: how fine/coarse the wind pattern is (default: 0.004)
+        octaves: number of noise octaves for wind (default: 4)
+        time_scale: how fast wind pattern evolves (default: 0.008)
+
+    Returns:
+        name of created MASH network for further manipulation
+
+    Raises:
+        RuntimeError: if terrain_mesh or grass_geometry not found in scene
+        RuntimeError: if geometry has no faces (invalid mesh)
+        ValueError: if count is zero or negative
+        ValueError: if scale_variation has invalid values
+
+    Example:
+        >>> from maya_grass import generate_grass
+        >>> network = generate_grass('terrain', 'grassBlade')
+        >>> print(f"Created: {network}")
+        Created: grass_MASH_1
+    """
+    # validate inputs before doing any work
+    _validate_mesh_exists(terrain_mesh, "Terrain mesh")
+    _validate_mesh_exists(grass_geometry, "Grass geometry")
+    _validate_params(count, scale_variation)
+
+    # initialize noise with seed for deterministic results
+    from generative_art.noise_utils import init_noise
+
+    init_noise(seed)
+
+    # create terrain analyzer and grass generator
+    terrain = TerrainAnalyzer(mesh_name=terrain_mesh)
+    generator = GrassGenerator(terrain=terrain)
+
+    # configure wind field
+    generator.configure_wind(
+        noise_scale=noise_scale,
+        wind_strength=wind_strength,
+        time_scale=time_scale,
+    )
+
+    # detect obstacles from scene (exclude terrain and grass geometry)
+    generator.detect_scene_obstacles(
+        exclude_objects=[terrain_mesh, grass_geometry],
+    )
+
+    # calculate scale_variation for generate_points
+    # generate_points expects a single variation value (0-1 range)
+    scale_var = (scale_variation[1] - scale_variation[0]) / 2
+
+    # generate grass points
+    generator.generate_points(count=count, seed=seed, scale_variation=scale_var)
+
+    # create unique MASH network name
+    network_name = _get_unique_network_name()
+
+    # create MASH network with mesh distribution
+    generator.create_mash_network(
+        grass_geometry,
+        network_name,
+        distribute_on_mesh=True,
+        terrain_mesh=terrain_mesh,
+    )
+
+    return network_name
