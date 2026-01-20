@@ -23,44 +23,55 @@ class TestValidateParams:
     def test_valid_params_pass(self) -> None:
         """Valid parameters should not raise."""
         # should not raise
-        _validate_params(5000, (0.8, 1.2))
-        _validate_params(1, (0.1, 2.0))
-        _validate_params(100000, (1.0, 1.0))  # equal min/max is valid
+        _validate_params(5000, (0.8, 1.2), 1.0)
+        _validate_params(1, (0.1, 2.0), 1.0)
+        _validate_params(100000, (1.0, 1.0), 1.0)  # equal min/max is valid
 
     def test_negative_count_raises(self) -> None:
         """Negative count should raise ValueError."""
         with pytest.raises(ValueError, match="-1"):
-            _validate_params(-1, (0.8, 1.2))
+            _validate_params(-1, (0.8, 1.2), 1.0)
 
     def test_zero_count_raises(self) -> None:
         """Zero count should raise ValueError."""
         with pytest.raises(ValueError, match="0"):
-            _validate_params(0, (0.8, 1.2))
+            _validate_params(0, (0.8, 1.2), 1.0)
 
     def test_negative_min_scale_raises(self) -> None:
         """Negative min scale should raise ValueError."""
         with pytest.raises(ValueError, match="positive"):
-            _validate_params(5000, (-0.5, 1.2))
+            _validate_params(5000, (-0.5, 1.2), 1.0)
 
     def test_negative_max_scale_raises(self) -> None:
         """Negative max scale should raise ValueError."""
         with pytest.raises(ValueError, match="positive"):
-            _validate_params(5000, (0.8, -1.2))
+            _validate_params(5000, (0.8, -1.2), 1.0)
 
     def test_zero_min_scale_raises(self) -> None:
         """Zero min scale should raise ValueError."""
         with pytest.raises(ValueError, match="positive"):
-            _validate_params(5000, (0, 1.2))
+            _validate_params(5000, (0, 1.2), 1.0)
 
     def test_zero_max_scale_raises(self) -> None:
         """Zero max scale should raise ValueError."""
         with pytest.raises(ValueError, match="positive"):
-            _validate_params(5000, (0.8, 0))
+            _validate_params(5000, (0.8, 0), 1.0)
 
     def test_inverted_scale_range_raises(self) -> None:
         """Min scale greater than max should raise ValueError."""
         with pytest.raises(ValueError, match="greater than"):
-            _validate_params(5000, (1.5, 0.8))
+            _validate_params(5000, (1.5, 0.8), 1.0)
+
+    def test_invalid_proximity_density_boost_raises(self) -> None:
+        """proximity_density_boost < 1.0 should raise ValueError."""
+        with pytest.raises(ValueError, match="proximity_density_boost"):
+            _validate_params(5000, (0.8, 1.2), 0.5)
+
+    def test_valid_proximity_density_boost_passes(self) -> None:
+        """Valid proximity_density_boost values should not raise."""
+        _validate_params(5000, (0.8, 1.2), 1.0)  # minimum valid
+        _validate_params(5000, (0.8, 1.2), 3.0)  # typical boost
+        _validate_params(5000, (0.8, 1.2), 10.0)  # high boost
 
 
 class TestModuleExports:
@@ -251,11 +262,12 @@ class TestImportWithoutMaya:
         assert sig.parameters["count"].default == DEFAULT_COUNT
         assert sig.parameters["wind_strength"].default == DEFAULT_WIND_STRENGTH
         assert sig.parameters["seed"].default == DEFAULT_SEED
+        assert sig.parameters["proximity_density_boost"].default == 1.0
 
     def test_validate_params_works_without_maya(self) -> None:
         """_validate_params should work without Maya (no maya imports)."""
         # this function shouldn't need maya at all
-        _validate_params(1000, (0.5, 1.5))  # should not raise
+        _validate_params(1000, (0.5, 1.5), 1.0)  # should not raise
 
     def test_module_docstring_exists(self) -> None:
         """Module should have a docstring with usage examples."""
