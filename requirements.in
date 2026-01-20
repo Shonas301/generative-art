@@ -1,5 +1,4 @@
 py5
-noise
 numpy
 opensimplex>=0.4.5,<0.5
 pillow
