@@ -127,6 +127,8 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 "src/generative_art/flow_field.py" = ["C901", "PLR0912", "PLR0915", "PLR0913"]
 # CLI entry points have boolean positional args from click decorators
 "src/generative_art/__main__.py" = ["FBT001", "T201"]
+# noise utils has multi-parameter fBm functions (x, y, z, octaves, persistence, lacunarity)
+"src/generative_art/noise_utils.py" = ["PLR0913"]
 # maya grass plugin - complex terrain analysis and configurable methods
 "src/maya_grass/*.py" = [
     "C901",      # terrain blob detection is inherently complex
