@@ -29,8 +29,8 @@ def setup_path() -> None:
 
 
 def run(
-    terrain_mesh: str = "terrain_01",
-    grass_geometry: str = "grassmodel0",
+    terrain_mesh: str = "ground1",
+    grass_geometry: str = "GRASS",
     count: int = 5000,
     wind_strength: float = 2.5,
     scale_variation: tuple[float, float] = (0.8, 1.2),
